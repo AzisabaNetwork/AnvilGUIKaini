@@ -307,79 +307,74 @@ public class AnvilGUI {
 
         @EventHandler
         public void onInventoryClick(InventoryClickEvent event) {
-            if (!event.getInventory().equals(inventory)) {
-                return;
-            }
+            if (!event.getInventory().equals(inventory)) return;
 
             final int rawSlot = event.getRawSlot();
-            // ignore items dropped outside the window
-            if (rawSlot == -999) return;
+            if (rawSlot == -999) return; // outside
 
             final Player clicker = (Player) event.getWhoClicked();
             final Inventory clickedInventory = event.getClickedInventory();
+            final InventoryAction action = event.getAction();
+            final ClickType clickType = event.getClick();
 
-            if (clickedInventory != null) {
-                if (clickedInventory.equals(clicker.getInventory())) {
-                    // prevent players from merging items from the anvil inventory
-                    if (event.getClick().equals(ClickType.DOUBLE_CLICK)) {
-                        event.setCancelled(true);
-                        return;
-                    }
-                    // prevent shift moving items from players inv to the anvil inventory
-                    if (event.isShiftClick()) {
-                        event.setCancelled(true);
-                        return;
-                    }
-                }
-                // prevent players from swapping items in the anvil gui
+            // ---- 在庫移動系は全面禁止（どこをクリックしても潰す）----
+            if (action == InventoryAction.MOVE_TO_OTHER_INVENTORY // Shift移動
+                    || action == InventoryAction.COLLECT_TO_CURSOR // ダブルクリック回収
+                    || action == InventoryAction.HOTBAR_MOVE_AND_READD // ホットバー移動
+                    || action == InventoryAction.HOTBAR_SWAP // ホットバースワップ
+                    || clickType == ClickType.DOUBLE_CLICK
+                    || clickType == ClickType.NUMBER_KEY) {
+                event.setCancelled(true);
+                return;
+            }
+
+            if (clickedInventory != null && clickedInventory.equals(inventory)) {
+                // ---- AnvilGUI 側の全クリックは常にキャンセルしてアイテム移動を阻止 ----
+                event.setCancelled(true);
+
+                // カーソルに何か持って非ボタンスロットを触るスワップも阻止（保険）
                 if ((event.getCursor() != null && event.getCursor().getType() != Material.AIR)
-                        && !interactableSlots.contains(rawSlot)
-                        && event.getClickedInventory().equals(inventory)) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-
-            if (rawSlot < 3 && rawSlot >= 0 || event.getAction().equals(InventoryAction.MOVE_TO_OTHER_INVENTORY)) {
-                event.setCancelled(!interactableSlots.contains(rawSlot));
-                if (clickHandlerRunning && !concurrentClickHandlerExecution) {
-                    // A click handler is running, don't launch another one
+                        && !interactableSlots.contains(rawSlot)) {
                     return;
                 }
 
-                final CompletableFuture<List<ResponseAction>> actionsFuture =
-                        clickHandler.apply(rawSlot, StateSnapshot.fromAnvilGUI(AnvilGUI.this));
+                // ---- ボタンスロット(0〜2)は機能だけ実行（アイテムは動かない：cancel済み）----
+                if (rawSlot >= 0 && rawSlot < 3 && interactableSlots.contains(rawSlot)) {
+                    if (clickHandlerRunning && !concurrentClickHandlerExecution) return;
 
-                final Consumer<List<ResponseAction>> actionsConsumer = actions -> {
-                    for (final ResponseAction action : actions) {
-                        action.accept(AnvilGUI.this, clicker);
+                    final CompletableFuture<List<ResponseAction>> actionsFuture =
+                            clickHandler.apply(rawSlot, StateSnapshot.fromAnvilGUI(AnvilGUI.this));
+
+                    final Consumer<List<ResponseAction>> actionsConsumer = actions -> {
+                        for (final ResponseAction action2 : actions) {
+                            action2.accept(AnvilGUI.this, clicker);
+                        }
+                    };
+
+                    if (actionsFuture.isDone()) {
+                        actionsFuture.thenAccept(actionsConsumer).join();
+                    } else {
+                        clickHandlerRunning = true;
+                        actionsFuture
+                                .thenAcceptAsync(actionsConsumer, mainThreadExecutor)
+                                .handle((results, exception) -> {
+                                    if (exception != null) {
+                                        plugin.getLogger()
+                                                .log(
+                                                        Level.SEVERE,
+                                                        "An exception occurred in the AnvilGUI clickHandler",
+                                                        exception);
+                                    }
+                                    clickHandlerRunning = false;
+                                    return null;
+                                });
                     }
-                };
-
-                if (actionsFuture.isDone()) {
-                    // Fast-path without scheduling if clickHandler is performed in sync
-                    // Because the future is already completed, .join() will not block the server thread
-                    actionsFuture.thenAccept(actionsConsumer).join();
-                } else {
-                    clickHandlerRunning = true;
-                    // If the plugin is disabled and the Executor throws an exception, the exception will be passed to
-                    // the .handle method
-                    actionsFuture
-                            .thenAcceptAsync(actionsConsumer, mainThreadExecutor)
-                            .handle((results, exception) -> {
-                                if (exception != null) {
-                                    plugin.getLogger()
-                                            .log(
-                                                    Level.SEVERE,
-                                                    "An exception occurred in the AnvilGUI clickHandler",
-                                                    exception);
-                                }
-                                // Whether an exception occurred or not, set running to false
-                                clickHandlerRunning = false;
-                                return null;
-                            });
                 }
+                return; // Anvil側はここですべて処理完了（アイテムは動かない）
             }
+
+            // ---- プレイヤーインベントリ側も基本は何も動かさない（全面停止）----
+            event.setCancelled(true);
         }
 
         @EventHandler

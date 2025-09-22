@@ -7,7 +7,7 @@
     <parent>
         <groupId>net.wesjd</groupId>
         <artifactId>anvilgui-parent</artifactId>
-        <version>1.10.8-SNAPSHOT</version>
+        <version>1.10.8Kaini</version>
     </parent>
 
     <artifactId>anvilgui</artifactId>
@@ -257,4 +257,15 @@
             </plugin>
         </plugins>
     </build>
+
+    <distributionManagement>
+        <repository>
+            <id>azisaba</id>
+            <url>https://repo.azisaba.net/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>azisaba</id>
+            <url>https://repo.azisaba.net/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
 </project>
