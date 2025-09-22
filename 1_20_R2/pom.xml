@@ -7,7 +7,7 @@
     <parent>
         <groupId>net.wesjd</groupId>
         <artifactId>anvilgui-parent</artifactId>
-        <version>1.10.8Kaini</version>
+        <version>1.10.8Kaini-SNAPSHOT</version>
     </parent>
 
     <artifactId>anvilgui-1_20_R2</artifactId>
