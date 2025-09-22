@@ -6,7 +6,7 @@
 
     <groupId>net.wesjd</groupId>
     <artifactId>anvilgui-parent</artifactId>
-    <version>1.10.8-SNAPSHOT</version>
+    <version>1.10.8Kaini</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -128,12 +128,12 @@
 
     <distributionManagement>
         <repository>
-            <id>codemc-releases</id>
-            <url>https://repo.codemc.io/repository/maven-releases/</url>
+            <id>azisaba</id>
+            <url>https://repo.azisaba.net/repository/maven-releases/</url>
         </repository>
         <snapshotRepository>
-            <id>codemc-snapshots</id>
-            <url>https://repo.codemc.io/repository/maven-snapshots/</url>
+            <id>azisaba</id>
+            <url>https://repo.azisaba.net/repository/maven-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
